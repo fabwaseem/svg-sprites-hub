@@ -53,7 +53,7 @@ export default function PreviewPage() {
       </section>
 
       {/* Main Content */}
-      <section className="px-4 py-12 max-w-7xl mx-auto">
+      <section className="px-4 py-12 ">
         {!uploadedSprite ? (
           <SvgSpriteUploader onUpload={handleSpriteUpload} />
         ) : (
