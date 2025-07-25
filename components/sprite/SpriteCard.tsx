@@ -15,7 +15,7 @@ import { motion } from "framer-motion";
 import { Download, Eye, Heart, Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback, useMemo, memo } from "react";
 import { SpritePreviewModal } from "./SpritePreviewModal";
 import SvgPreview from "./SvgPreview";
 
@@ -23,7 +23,7 @@ interface SpriteCardProps {
   sprite: Sprite;
 }
 
-export function SpriteCard({ sprite }: SpriteCardProps) {
+export const SpriteCard = memo(function SpriteCard({ sprite }: SpriteCardProps) {
   const [showPreview, setShowPreview] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -40,8 +40,24 @@ export function SpriteCard({ sprite }: SpriteCardProps) {
   const toggleFavourite = useToggleFavourite(sprite.id);
   const [downloadLoading, setDownloadLoading] = useState(false);
 
-  // Helper for tag click
-  function handleTagClick(tag: string) {
+  // Memoized calculations
+  const displayedIcons = useMemo(() => {
+    const maxIcons = getRemainingCount(sprite.icons.length, 8) > 9 ? 8 : 9;
+    return sprite.icons.slice(0, maxIcons);
+  }, [sprite.icons]);
+
+  const remainingCount = useMemo(() =>
+    getRemainingCount(sprite.icons.length, 8),
+    [sprite.icons.length]
+  );
+
+  const displayedTags = useMemo(() =>
+    sprite.tags.slice(0, 3),
+    [sprite.tags]
+  );
+
+  // Memoized handlers
+  const handleTagClick = useCallback((tag: string) => {
     setShowPreview(false);
     if (pathname !== "/sprites") {
       router.push(`/sprites?tags=${encodeURIComponent(tag)}`);
@@ -54,21 +70,29 @@ export function SpriteCard({ sprite }: SpriteCardProps) {
       }
       setTags(Array.from(tagSet));
     }
-  }
+  }, [pathname, router, tags, setTags]);
 
-  function handleToggleFavourite() {
+  const handleToggleFavourite = useCallback(() => {
     setIsFavourite((prev) => !prev);
     toggleFavourite.mutate(isFavourite);
-  }
+  }, [toggleFavourite, isFavourite]);
 
-  async function handleDownload() {
+  const handleDownload = useCallback(async () => {
     setDownloadLoading(true);
     try {
       await handleDownloadSprite({ id: sprite.id, name: sprite.name });
     } finally {
       setDownloadLoading(false);
     }
-  }
+  }, [sprite.id, sprite.name]);
+
+  const handlePreviewOpen = useCallback(() => {
+    setShowPreview(true);
+  }, []);
+
+  const handlePreviewClose = useCallback(() => {
+    setShowPreview(false);
+  }, []);
 
   return (
     <>
@@ -92,17 +116,15 @@ export function SpriteCard({ sprite }: SpriteCardProps) {
                 whileHover={{ scale: 1.1 }}
                 onClick={handleToggleFavourite}
                 disabled={toggleFavourite.isPending}
-                className={`p-2 rounded-full transition-all duration-300 ${
-                  isFavourite
-                    ? "text-red-500 bg-red-50 dark:bg-red-950/30 shadow-sm"
-                    : "text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
-                }`}
+                className={`p-2 rounded-full transition-all duration-300 ${isFavourite
+                  ? "text-red-500 bg-red-50 dark:bg-red-950/30 shadow-sm"
+                  : "text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  }`}
                 aria-label={isFavourite ? "Unfavourite" : "Favourite"}
               >
                 <Heart
-                  className={`w-4 h-4 transition-all duration-300 ${
-                    isFavourite ? "fill-current scale-110" : ""
-                  }`}
+                  className={`w-4 h-4 transition-all duration-300 ${isFavourite ? "fill-current scale-110" : ""
+                    }`}
                 />
               </motion.button>
             </div>
@@ -127,47 +149,41 @@ export function SpriteCard({ sprite }: SpriteCardProps) {
               </div>
 
               <div className="flex flex-wrap justify-center items-center gap-4 relative z-10">
-                {sprite.icons
-                  .slice(
-                    0,
-                    getRemainingCount(sprite.icons.length, 8) > 9 ? 8 : 9
-                  )
-                  .map((spriteItem, index) => (
-                    <SvgPreview
-                      key={index}
-                      file={
-                        new File([spriteItem.svg], spriteItem.name, {
-                          type: "image/svg+xml",
-                        })
-                      }
-                      className="size-10"
-                    />
-                  ))}
-                {getRemainingCount(sprite.icons.length, 8) ? (
+                {displayedIcons.map((spriteItem, index) => (
+                  <SvgPreview
+                    key={`${sprite.id}-${index}`}
+                    file={
+                      new File([spriteItem.svg], spriteItem.name, {
+                        type: "image/svg+xml",
+                      })
+                    }
+                    className="size-10"
+                  />
+                ))}
+                {remainingCount > 0 && (
                   <motion.div
                     whileHover={{ scale: 1.2 }}
                     transition={{ duration: 0.2 }}
                     className="py-1.5 px-2 flex items-center justify-center bg-muted/60 border rounded-lg text-lg font-display text-primary"
                   >
-                    +{getRemainingCount(sprite.icons.length, 8)}
+                    +{remainingCount}
                   </motion.div>
-                ) : null}
+                )}
               </div>
             </div>
 
             {/* Tags */}
             <div className="flex flex-wrap gap-2">
-              {sprite.tags.slice(0, 3).map((tag) => {
+              {displayedTags.map((tag) => {
                 const isSelected = (tags || []).includes(tag);
                 return (
                   <Badge
                     key={tag}
                     variant={isSelected ? "default" : "outline"}
-                    className={`text-xs px-2 py-1 font-medium transition-colors duration-200 cursor-pointer ${
-                      isSelected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "hover:bg-primary/10 hover:border-primary"
-                    }`}
+                    className={`text-xs px-2 py-1 font-medium transition-colors duration-200 cursor-pointer ${isSelected
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "hover:bg-primary/10 hover:border-primary"
+                      }`}
                     onClick={() => handleTagClick(tag)}
                   >
                     {tag}
@@ -187,7 +203,7 @@ export function SpriteCard({ sprite }: SpriteCardProps) {
 
           <CardFooter className="gap-3 relative z-10">
             <Button
-              onClick={() => setShowPreview(true)}
+              onClick={handlePreviewOpen}
               variant="outline"
               size="sm"
               className="flex-1 "
@@ -216,8 +232,8 @@ export function SpriteCard({ sprite }: SpriteCardProps) {
       <SpritePreviewModal
         sprite={sprite}
         isOpen={showPreview}
-        onClose={() => setShowPreview(false)}
+        onClose={handlePreviewClose}
       />
     </>
   );
-}
+});

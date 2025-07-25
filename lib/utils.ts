@@ -63,15 +63,35 @@ export const handleCopySprite = (
   setTimeout(() => setCopied(false), 2000);
 };
 
+
 export const truncateSvg = (svg: string, maxLength: number = 48) => {
-  // Regex to match d="..." or d='...'
+  let elementCount = 0;
+
   return svg.replace(
-    /(\s[dD]=["'])(.*?)(["'])/g,
-    (match, prefix, value, suffix) => {
-      if (value.length > maxLength) {
-        return `${prefix}${value.slice(0, maxLength)}...${suffix}`;
+    /<([a-zA-Z][a-zA-Z0-9]*)[^>]*\/?>(?:[^<]*<\/\1>)?/g,
+    (match, tagName) => {
+      // Skip the root svg element
+      if (tagName.toLowerCase() === 'svg') {
+        return match;
       }
-      return match;
+
+      elementCount++;
+
+      // Remove elements after the first 2
+      if (elementCount > 2) {
+        return '';
+      }
+
+      // Apply length truncation to d attributes if present
+      return match.replace(
+        /(\s[dD]=["'])(.*?)(["'])/g,
+        (attrMatch, prefix, value, suffix) => {
+          if (value.length > maxLength) {
+            return `${prefix}${value.slice(0, maxLength)}...${suffix}`;
+          }
+          return attrMatch;
+        }
+      );
     }
   );
 };

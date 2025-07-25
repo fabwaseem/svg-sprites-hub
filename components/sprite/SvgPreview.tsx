@@ -1,38 +1,66 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, memo } from "react";
 import { cn } from "../../lib/utils";
 import { motion } from "framer-motion";
+import { useInView } from "react-intersection-observer";
 
-const SvgPreview = ({
-  file,
-  className,
-  onClick,
-}: {
+interface SvgPreviewProps {
   file: File;
   className?: string;
   onClick?: () => void;
-}) => {
+}
+
+const SvgPreview = memo(({
+  file,
+  className,
+  onClick,
+}: SvgPreviewProps) => {
   const [svg, setSvg] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const { ref, inView } = useInView({
+    threshold: 0,
+    triggerOnce: true,
+    rootMargin: '50px',
+  });
+
   useEffect(() => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setSvg(e.target?.result as string);
-    };
-    reader.readAsText(file);
-  }, [file]);
-  if (!svg) return <span className="w-8 h-8 bg-muted animate-pulse rounded" />;
+    if (inView && !isLoaded) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setSvg(e.target?.result as string);
+        setIsLoaded(true);
+      };
+      reader.readAsText(file);
+    }
+  }, [file, inView, isLoaded]);
+
+  if (!inView || !svg) {
+    return (
+      <span
+        ref={ref}
+        className={cn(
+          "size-8 p-1 aspect-square flex items-center justify-center rounded cursor-pointer border border-border bg-muted/60 animate-pulse",
+          className
+        )}
+      />
+    );
+  }
+
   return (
     <motion.span
+      ref={ref}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.95 }}
       className={cn(
-        "size-8   p-1   aspect-square flex items-center justify-center  rounded cursor-pointer  border border-border bg-muted/60 hover:bg-accent/40 text-primary",
+        "size-8 p-1 aspect-square flex items-center justify-center rounded cursor-pointer border border-border bg-muted/60 hover:bg-accent/40 text-primary",
         className
       )}
       dangerouslySetInnerHTML={{ __html: svg }}
       title={file.name}
       onClick={onClick}
-    ></motion.span>
+    />
   );
-};
+});
+
+SvgPreview.displayName = 'SvgPreview';
 
 export default SvgPreview;

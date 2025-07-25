@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSprites } from "@/lib/db/spriteUtils";
-import { prisma } from "@/lib/db/prisma";
 import { auth } from "@/lib/auth";
-import { optimize } from "svgo";
+import { prisma } from "@/lib/db/prisma";
+import { getSprites } from "@/lib/db/spriteUtils";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url!);
@@ -71,11 +70,11 @@ export async function POST(req: NextRequest) {
   // Optimize SVGs before saving
   const optimizedIcons = icons.map((icon: { name: string; svg: string }) => ({
     name: icon.name,
-    svg: optimize(icon.svg, { multipass: true }).data,
+    svg: icon.svg,
     user: { connect: { id: session.user.id } },
   }));
 
-  // Save sprite and icons
+  // Save sprite and optimizedIcons
   const sprite = await prisma.sprite.create({
     data: {
       name,

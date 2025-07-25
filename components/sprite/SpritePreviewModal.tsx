@@ -31,8 +31,8 @@ import {
 import moment from "moment";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
-import { useState } from "react";
-import { ScrollArea } from "../ui/scroll-area";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { FixedSizeGrid as Grid } from "react-window";
 import SvgPreview from "./SvgPreview";
 
 interface SpritePreviewModalProps {
@@ -40,6 +40,45 @@ interface SpritePreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+// Virtualized icon item component
+interface IconItemProps {
+  columnIndex: number;
+  rowIndex: number;
+  style: React.CSSProperties;
+  data: {
+    icons: Icon[];
+    selectedIcon: Icon | null;
+    onIconSelect: (icon: Icon) => void;
+    itemsPerRow: number;
+    itemWidth: number;
+  };
+}
+
+const IconItem = ({ columnIndex, rowIndex, style, data }: IconItemProps) => {
+  const { icons, selectedIcon, onIconSelect, itemsPerRow } = data;
+  const index = rowIndex * itemsPerRow + columnIndex;
+
+  if (index >= icons.length) {
+    return <div style={style} />;
+  }
+
+  const icon = icons[index];
+  const isSelected = selectedIcon?.name === icon.name;
+
+  return (
+    <div style={style} className="p-2">
+      <SvgPreview
+        file={new File([icon.svg], icon.name, { type: "image/svg+xml" })}
+        onClick={() => onIconSelect(icon)}
+        className={cn(
+          "size-14",
+          isSelected ? "ring-2 ring-primary" : ""
+        )}
+      />
+    </div>
+  );
+};
 
 export function SpritePreviewModal({
   sprite,
@@ -57,9 +96,74 @@ export function SpritePreviewModal({
     defaultValue: [],
   });
   const [downloadLoading, setDownloadLoading] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(400);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Function to calculate container width
+  const calculateContainerWidth = useCallback(() => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const padding = 64; // 32px padding on each side (p-8 = 2rem = 32px)
+      const availableWidth = rect.width - padding;
+      setContainerWidth(Math.max(300, Math.min(availableWidth, 600))); // Min 300px, max 600px
+    }
+  }, []);
+
+  // Effect to calculate width on mount and modal open
+  useEffect(() => {
+    if (isOpen) {
+      // Small delay to ensure dialog is fully rendered
+      const timer = setTimeout(() => {
+        calculateContainerWidth();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, calculateContainerWidth]);
+
+  // Effect to listen for window resize
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleResize = () => {
+      calculateContainerWidth();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isOpen, calculateContainerWidth]);
+
+  // Memoized calculations for virtualization
+  const gridConfig = useMemo(() => {
+    const itemWidth = 72; // 56px icon + 16px padding
+    const itemHeight = 72;
+    const itemsPerRow = Math.max(1, Math.floor(containerWidth / itemWidth));
+    const rowCount = Math.ceil(sprite.icons.length / itemsPerRow);
+
+    return {
+      itemsPerRow,
+      rowCount,
+      itemWidth,
+      itemHeight,
+      containerWidth,
+    };
+  }, [containerWidth, sprite.icons.length]);
+
+  // Memoized icon selection handler
+  const handleIconSelect = useCallback((icon: Icon) => {
+    setSelectedIcon(icon);
+  }, []);
+
+  // Memoized grid data
+  const gridData = useMemo(() => ({
+    icons: sprite.icons,
+    selectedIcon,
+    onIconSelect: handleIconSelect,
+    itemsPerRow: gridConfig.itemsPerRow,
+    itemWidth: gridConfig.itemWidth,
+  }), [sprite.icons, selectedIcon, handleIconSelect, gridConfig.itemsPerRow, gridConfig.itemWidth]);
 
   // Helper for tag click
-  function handleTagClick(tag: string) {
+  const handleTagClick = useCallback((tag: string) => {
     if (pathname !== "/sprites") {
       router.push(`/sprites?tags=${encodeURIComponent(tag)}`);
     } else {
@@ -71,16 +175,16 @@ export function SpritePreviewModal({
       }
       setTags(Array.from(tagSet));
     }
-  }
+  }, [pathname, router, tags, setTags]);
 
-  async function handleDownload() {
+  const handleDownload = useCallback(async () => {
     setDownloadLoading(true);
     try {
       await handleDownloadSprite({ id: sprite.id, name: sprite.name });
     } finally {
       setDownloadLoading(false);
     }
-  }
+  }, [sprite.id, sprite.name]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -90,28 +194,22 @@ export function SpritePreviewModal({
           {sprite.description}
         </DialogDescription>
         {/* Preview Area */}
-        <div className="flex-1  flex flex-col  items-center justify-center bg-card p-8 ">
-          <ScrollArea className="max-h-[300px] w-full " fadeColors="from-card ">
-            <div className="w-full flex flex-wrap gap-4 justify-center items-center mb-6">
-              {sprite.icons.map((spriteItem, index) => (
-                <SvgPreview
-                  key={index}
-                  file={
-                    new File([spriteItem.svg], spriteItem.name, {
-                      type: "image/svg+xml",
-                    })
-                  }
-                  onClick={() => setSelectedIcon(spriteItem)}
-                  className={cn(
-                    "size-14",
-                    selectedIcon?.name === spriteItem.name
-                      ? "ring-2 ring-primary"
-                      : ""
-                  )}
-                />
-              ))}
-            </div>
-          </ScrollArea>
+        <div ref={containerRef} className="flex-1 flex flex-col items-center justify-center bg-card p-8">
+          {/* Virtualized Grid */}
+          <div className="w-full h-[300px] mb-6 flex justify-center">
+            <Grid
+              columnCount={gridConfig.itemsPerRow}
+              columnWidth={gridConfig.itemWidth}
+              height={300}
+              rowCount={gridConfig.rowCount}
+              rowHeight={gridConfig.itemHeight}
+              width={gridConfig.containerWidth}
+              itemData={gridData}
+              className="scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
+            >
+              {IconItem}
+            </Grid>
+          </div>
           {/* Selected Sprite Details */}
           <AnimatePresence>
             {selectedIcon && (
@@ -202,17 +300,16 @@ export function SpritePreviewModal({
             </div>
             {/* Tags */}
             <div className="flex flex-wrap gap-2">
-              {sprite.tags.map((tag, index) => {
+              {sprite.tags.map((tag) => {
                 const isSelected = (tags || []).includes(tag);
                 return (
                   <Badge
-                    key={index}
+                    key={tag}
                     variant={isSelected ? "default" : "outline"}
-                    className={`text-xs cursor-pointer transition-colors duration-200 ${
-                      isSelected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "hover:bg-primary/10 hover:border-primary"
-                    }`}
+                    className={`text-xs cursor-pointer transition-colors duration-200 ${isSelected
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "hover:bg-primary/10 hover:border-primary"
+                      }`}
                     onClick={() => handleTagClick(tag)}
                   >
                     {tag}

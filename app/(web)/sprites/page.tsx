@@ -6,10 +6,29 @@ import { SpriteCardSkeleton } from "@/components/sprite/SpriteCardSkeleton";
 import { useSprites } from "@/hooks/useSprites";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo, useCallback, memo } from "react";
 import { useInView } from "react-intersection-observer";
 import { useQueryState } from "nuqs";
 import { Suspense } from "react";
+import { useDebounce } from "use-debounce";
+import { Sprite } from "@/types";
+
+// Memoized SpriteCard to prevent unnecessary re-renders
+const MemoizedSpriteCard = memo(SpriteCard);
+
+// Memoized grid item component for better performance
+const SpriteGridItem = memo(({ sprite, index }: { sprite: Sprite; index: number }) => (
+  <motion.div
+    key={sprite.id}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5, delay: Math.min(index * 0.05, 0.3) }} // Cap delay at 0.3s
+  >
+    <MemoizedSpriteCard sprite={sprite} />
+  </motion.div>
+));
+
+SpriteGridItem.displayName = 'SpriteGridItem';
 
 function SpritesPageContent() {
   // Use nuqs for search params
@@ -21,13 +40,6 @@ function SpritesPageContent() {
     serialize: (v) => (Array.isArray(v) ? v.join(",") : ""),
     defaultValue: [],
   });
-  const tags = Array.isArray(tagsRaw) ? tagsRaw : [];
-  const [page] = useQueryState("page", {
-    history: "replace",
-    defaultValue: 1,
-    parse: Number,
-    serialize: String,
-  });
   const [sortBy] = useQueryState("sortBy", {
     history: "replace",
     defaultValue: "createdAt",
@@ -37,26 +49,56 @@ function SpritesPageContent() {
     defaultValue: "desc",
   });
 
-  const { data, isLoading, isFetching, fetchNextPage, hasNextPage } =
-    useSprites({
-      search: search || undefined,
-      category: category || undefined,
-      tags: tags.length ? tags : undefined,
-      page: page || 1,
-      sortBy: sortBy as "createdAt" | "downloadCount",
-      sortOrder: sortOrder as "asc" | "desc",
-      pageSize: 12,
-    });
+  // Debounce search to reduce API calls
+  const [debouncedSearch] = useDebounce(search, 300);
 
-  const { ref, inView } = useInView({ triggerOnce: false, threshold: 0 });
+  // Memoize tags processing
+  const tags = useMemo(() =>
+    Array.isArray(tagsRaw) ? tagsRaw : [],
+    [tagsRaw]
+  );
 
-  useEffect(() => {
+  // Memoize query options to prevent unnecessary refetches
+  const queryOptions = useMemo(() => ({
+    search: debouncedSearch || undefined,
+    category: category || undefined,
+    tags: tags.length ? tags : undefined,
+    sortBy: sortBy as "createdAt" | "downloadCount",
+    sortOrder: sortOrder as "asc" | "desc",
+    pageSize: 15, // Increased page size for better UX
+  }), [debouncedSearch, category, tags, sortBy, sortOrder]);
+
+  const { data, isLoading, isFetching, fetchNextPage, hasNextPage } = useSprites(queryOptions);
+
+  // Optimized intersection observer with better threshold
+  const { ref, inView } = useInView({
+    triggerOnce: false,
+    threshold: 0,
+    rootMargin: '200px' // Start loading before user reaches the bottom
+  });
+
+  // Memoized fetch next page handler
+  const handleFetchNextPage = useCallback(() => {
     if (inView && hasNextPage && !isFetching) {
       fetchNextPage();
     }
   }, [inView, hasNextPage, isFetching, fetchNextPage]);
 
-  const sprites = data?.pages.flatMap((page) => page.sprites) || [];
+  useEffect(() => {
+    handleFetchNextPage();
+  }, [handleFetchNextPage]);
+
+  // Memoize sprites flattening to prevent recalculation
+  const sprites = useMemo(() =>
+    data?.pages.flatMap((page) => page.sprites) || [],
+    [data?.pages]
+  );
+
+  // Memoize skeleton count
+  const skeletonCount = useMemo(() =>
+    Array.from({ length: isLoading ? 15 : 6 }),
+    [isLoading]
+  );
 
   return (
     <main className="min-h-screen pt-16 bg-background">
@@ -88,25 +130,18 @@ function SpritesPageContent() {
 
       {/* Sprites Grid */}
       <section className="px-4 py-8 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3  gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {isLoading
-            ? Array.from({ length: 9 }).map((_, i) => (
-                <SpriteCardSkeleton key={i} />
-              ))
+            ? skeletonCount.map((_, i) => (
+              <SpriteCardSkeleton key={`loading-${i}`} />
+            ))
             : sprites.map((sprite, index) => (
-                <motion.div
-                  key={sprite.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.05 }}
-                >
-                  <SpriteCard sprite={sprite} />
-                </motion.div>
-              ))}
+              <SpriteGridItem key={sprite.id} sprite={sprite} index={index} />
+            ))}
           {/* Show skeletons when fetching next page */}
           {isFetching &&
             !isLoading &&
-            Array.from({ length: 9 }).map((_, i) => (
+            Array.from({ length: 6 }).map((_, i) => (
               <SpriteCardSkeleton key={`fetching-${i}`} />
             ))}
         </div>
