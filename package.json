@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "scrape:svgrepo": "ts-node --loader ts-node/esm scripts/scrapeSvgRepoCollections.ts"
+    "scrape": "tsx scripts/scrape.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
