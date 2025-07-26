@@ -4,8 +4,12 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Download, Sparkles, Upload } from "lucide-react";
 import Link from "next/link";
+import { useStats } from "@/hooks/useStats";
+import { formatNumber } from "@/lib/utils";
 
 export function CTA() {
+  const { data: stats, isLoading } = useStats();
+
   return (
     <section className="py-24 bg-background relative overflow-hidden border-t border-border">
       {/* Background elements */}
@@ -32,8 +36,10 @@ export function CTA() {
           </h2>
 
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto text-balance">
-            Join 50,000+ designers who trust SpriteHub for their projects. Start
-            with our free plan or try Pro free for 14 days.
+            Join {stats ? formatNumber(stats.totalUsers) : "50K"}+ designers who
+            trust SpriteHub for their projects. Access{" "}
+            {stats ? formatNumber(stats.totalSprites) : "10K"}+ premium sprites
+            today.
           </p>
         </motion.div>
 

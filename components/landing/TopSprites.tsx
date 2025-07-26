@@ -7,6 +7,8 @@ import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { SpriteCardSkeleton } from "@/components/sprite/SpriteCardSkeleton";
+import { useStats } from "@/hooks/useStats";
+import { formatNumber } from "@/lib/utils";
 
 export function TopSprites() {
   const { data, isLoading } = useSprites({
@@ -14,6 +16,7 @@ export function TopSprites() {
     sortBy: "downloadCount",
     sortOrder: "desc",
   });
+  const { data: stats } = useStats();
 
   const sprites = data?.pages.flatMap((page) => page.sprites) || [];
 
@@ -69,7 +72,8 @@ export function TopSprites() {
         >
           <Button size="lg" variant="outline" asChild>
             <Link href="/sprites">
-              Browse All 10,000+ Sprites
+              Browse All {stats ? formatNumber(stats.totalSprites) : "10K"}+
+              Sprites
               <ArrowRight className="w-5 h-5 ml-2" />
             </Link>
           </Button>

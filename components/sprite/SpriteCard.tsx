@@ -23,7 +23,9 @@ interface SpriteCardProps {
   sprite: Sprite;
 }
 
-export const SpriteCard = memo(function SpriteCard({ sprite }: SpriteCardProps) {
+export const SpriteCard = memo(function SpriteCard({
+  sprite,
+}: SpriteCardProps) {
   const [showPreview, setShowPreview] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -46,31 +48,31 @@ export const SpriteCard = memo(function SpriteCard({ sprite }: SpriteCardProps) 
     return sprite.icons.slice(0, maxIcons);
   }, [sprite.icons]);
 
-  const remainingCount = useMemo(() =>
-    getRemainingCount(sprite.icons.length, 8),
+  const remainingCount = useMemo(
+    () => getRemainingCount(sprite.icons.length, 8),
     [sprite.icons.length]
   );
 
-  const displayedTags = useMemo(() =>
-    sprite.tags.slice(0, 3),
-    [sprite.tags]
-  );
+  const displayedTags = useMemo(() => sprite.tags.slice(0, 3), [sprite.tags]);
 
   // Memoized handlers
-  const handleTagClick = useCallback((tag: string) => {
-    setShowPreview(false);
-    if (pathname !== "/sprites") {
-      router.push(`/sprites?tags=${encodeURIComponent(tag)}`);
-    } else {
-      const tagSet = new Set(tags || []);
-      if (tagSet.has(tag)) {
-        tagSet.delete(tag);
+  const handleTagClick = useCallback(
+    (tag: string) => {
+      setShowPreview(false);
+      if (pathname !== "/sprites") {
+        router.push(`/sprites?tags=${encodeURIComponent(tag)}`);
       } else {
-        tagSet.add(tag);
+        const tagSet = new Set(tags || []);
+        if (tagSet.has(tag)) {
+          tagSet.delete(tag);
+        } else {
+          tagSet.add(tag);
+        }
+        setTags(Array.from(tagSet));
       }
-      setTags(Array.from(tagSet));
-    }
-  }, [pathname, router, tags, setTags]);
+    },
+    [pathname, router, tags, setTags]
+  );
 
   const handleToggleFavourite = useCallback(() => {
     setIsFavourite((prev) => !prev);
@@ -94,15 +96,28 @@ export const SpriteCard = memo(function SpriteCard({ sprite }: SpriteCardProps) 
     setShowPreview(false);
   }, []);
 
+  const handleCardClick = useCallback(
+    (e: React.MouseEvent) => {
+      // Don't navigate if clicking on interactive elements
+      const target = e.target as HTMLElement;
+      if (target.closest("button") || target.closest('[role="button"]')) {
+        return;
+      }
+      router.push(`/sprites/${sprite.id}`);
+    },
+    [router, sprite.id]
+  );
+
   return (
     <>
       <motion.div
         ref={cardRef}
         whileHover={{ y: -8 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        className="h-full"
+        className="h-full cursor-pointer"
+        onClick={handleCardClick}
       >
-        <Card>
+        <Card className="hover:shadow-lg transition-shadow duration-300">
           <CardHeader className="relative z-10">
             <div className="flex items-start justify-between ">
               <Badge
@@ -116,15 +131,17 @@ export const SpriteCard = memo(function SpriteCard({ sprite }: SpriteCardProps) 
                 whileHover={{ scale: 1.1 }}
                 onClick={handleToggleFavourite}
                 disabled={toggleFavourite.isPending}
-                className={`p-2 rounded-full transition-all duration-300 ${isFavourite
-                  ? "text-red-500 bg-red-50 dark:bg-red-950/30 shadow-sm"
-                  : "text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
-                  }`}
+                className={`p-2 rounded-full transition-all duration-300 ${
+                  isFavourite
+                    ? "text-red-500 bg-red-50 dark:bg-red-950/30 shadow-sm"
+                    : "text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                }`}
                 aria-label={isFavourite ? "Unfavourite" : "Favourite"}
               >
                 <Heart
-                  className={`w-4 h-4 transition-all duration-300 ${isFavourite ? "fill-current scale-110" : ""
-                    }`}
+                  className={`w-4 h-4 transition-all duration-300 ${
+                    isFavourite ? "fill-current scale-110" : ""
+                  }`}
                 />
               </motion.button>
             </div>
@@ -180,10 +197,11 @@ export const SpriteCard = memo(function SpriteCard({ sprite }: SpriteCardProps) 
                   <Badge
                     key={tag}
                     variant={isSelected ? "default" : "outline"}
-                    className={`text-xs px-2 py-1 font-medium transition-colors duration-200 cursor-pointer ${isSelected
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "hover:bg-primary/10 hover:border-primary"
-                      }`}
+                    className={`text-xs px-2 py-1 font-medium transition-colors duration-200 cursor-pointer ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "hover:bg-primary/10 hover:border-primary"
+                    }`}
                     onClick={() => handleTagClick(tag)}
                   >
                     {tag}

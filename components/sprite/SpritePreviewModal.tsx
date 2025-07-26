@@ -6,7 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogTitle
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   cn,
@@ -26,7 +26,7 @@ import {
   Heart,
   Info,
   Loader2,
-  User
+  User,
 } from "lucide-react";
 import moment from "moment";
 import { usePathname, useRouter } from "next/navigation";
@@ -71,10 +71,7 @@ const IconItem = ({ columnIndex, rowIndex, style, data }: IconItemProps) => {
       <SvgPreview
         file={new File([icon.svg], icon.name, { type: "image/svg+xml" })}
         onClick={() => onIconSelect(icon)}
-        className={cn(
-          "size-14",
-          isSelected ? "ring-2 ring-primary" : ""
-        )}
+        className={cn("size-14", isSelected ? "ring-2 ring-primary" : "")}
       />
     </div>
   );
@@ -128,8 +125,8 @@ export function SpritePreviewModal({
       calculateContainerWidth();
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, [isOpen, calculateContainerWidth]);
 
   // Memoized calculations for virtualization
@@ -154,28 +151,40 @@ export function SpritePreviewModal({
   }, []);
 
   // Memoized grid data
-  const gridData = useMemo(() => ({
-    icons: sprite.icons,
-    selectedIcon,
-    onIconSelect: handleIconSelect,
-    itemsPerRow: gridConfig.itemsPerRow,
-    itemWidth: gridConfig.itemWidth,
-  }), [sprite.icons, selectedIcon, handleIconSelect, gridConfig.itemsPerRow, gridConfig.itemWidth]);
+  const gridData = useMemo(
+    () => ({
+      icons: sprite.icons,
+      selectedIcon,
+      onIconSelect: handleIconSelect,
+      itemsPerRow: gridConfig.itemsPerRow,
+      itemWidth: gridConfig.itemWidth,
+    }),
+    [
+      sprite.icons,
+      selectedIcon,
+      handleIconSelect,
+      gridConfig.itemsPerRow,
+      gridConfig.itemWidth,
+    ]
+  );
 
   // Helper for tag click
-  const handleTagClick = useCallback((tag: string) => {
-    if (pathname !== "/sprites") {
-      router.push(`/sprites?tags=${encodeURIComponent(tag)}`);
-    } else {
-      const tagSet = new Set(tags || []);
-      if (tagSet.has(tag)) {
-        tagSet.delete(tag);
+  const handleTagClick = useCallback(
+    (tag: string) => {
+      if (pathname !== "/sprites") {
+        router.push(`/sprites?tags=${encodeURIComponent(tag)}`);
       } else {
-        tagSet.add(tag);
+        const tagSet = new Set(tags || []);
+        if (tagSet.has(tag)) {
+          tagSet.delete(tag);
+        } else {
+          tagSet.add(tag);
+        }
+        setTags(Array.from(tagSet));
       }
-      setTags(Array.from(tagSet));
-    }
-  }, [pathname, router, tags, setTags]);
+    },
+    [pathname, router, tags, setTags]
+  );
 
   const handleDownload = useCallback(async () => {
     setDownloadLoading(true);
@@ -194,7 +203,10 @@ export function SpritePreviewModal({
           {sprite.description}
         </DialogDescription>
         {/* Preview Area */}
-        <div ref={containerRef} className="flex-1 flex flex-col items-center justify-center bg-card p-8">
+        <div
+          ref={containerRef}
+          className="flex-1 flex flex-col items-center justify-center bg-card p-8"
+        >
           {/* Virtualized Grid */}
           <div className="w-full h-[300px] mb-6 flex justify-center">
             <Grid
@@ -306,10 +318,11 @@ export function SpritePreviewModal({
                   <Badge
                     key={tag}
                     variant={isSelected ? "default" : "outline"}
-                    className={`text-xs cursor-pointer transition-colors duration-200 ${isSelected
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "hover:bg-primary/10 hover:border-primary"
-                      }`}
+                    className={`text-xs cursor-pointer transition-colors duration-200 ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "hover:bg-primary/10 hover:border-primary"
+                    }`}
                     onClick={() => handleTagClick(tag)}
                   >
                     {tag}

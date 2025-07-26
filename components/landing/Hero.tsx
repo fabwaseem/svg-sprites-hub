@@ -4,8 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Download, Upload, Sparkles, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useStats } from "@/hooks/useStats";
+import { formatNumber } from "@/lib/utils";
 
 export function Hero() {
+  const { data: stats, isLoading } = useStats();
+
   return (
     <section className="relative px-4 py-20 text-center overflow-hidden bg-background min-h-screen flex items-center justify-center">
       <div className="max-w-4xl mx-auto">
@@ -61,19 +65,19 @@ export function Hero() {
             <span className="inline-flex items-center justify-center rounded-full bg-primary/10 text-primary w-6 h-6">
               <Check className="w-4 h-4" />
             </span>
-            Trusted by 10,000+ designers & developers
+            Trusted by amazing designers & developers
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center justify-center rounded-full bg-primary/10 text-primary w-6 h-6">
               <Check className="w-4 h-4" />
             </span>
-            100% Free & Open Source
+            {formatNumber(stats?.totalSprites)}+ High-quality sprites
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center justify-center rounded-full bg-primary/10 text-primary w-6 h-6">
               <Check className="w-4 h-4" />
             </span>
-            Scalable, high-quality SVG assets
+            {formatNumber(stats?.totalIcons)}+ Free Icons
           </div>
         </motion.div>
       </div>

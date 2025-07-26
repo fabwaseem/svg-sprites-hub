@@ -6,6 +6,7 @@ import Link from "next/link";
 const footerLinks = {
   Product: [
     { name: "Browse Sprites", href: "/sprites" },
+    { name: "Browse Icons", href: "/icons" },
     { name: "Upload", href: "/upload" },
     { name: "Generate", href: "/generate" },
   ],

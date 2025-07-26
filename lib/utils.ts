@@ -63,7 +63,6 @@ export const handleCopySprite = (
   setTimeout(() => setCopied(false), 2000);
 };
 
-
 export const truncateSvg = (svg: string, maxLength: number = 48) => {
   let elementCount = 0;
 
@@ -71,7 +70,7 @@ export const truncateSvg = (svg: string, maxLength: number = 48) => {
     /<([a-zA-Z][a-zA-Z0-9]*)[^>]*\/?>(?:[^<]*<\/\1>)?/g,
     (match, tagName) => {
       // Skip the root svg element
-      if (tagName.toLowerCase() === 'svg') {
+      if (tagName.toLowerCase() === "svg") {
         return match;
       }
 
@@ -79,7 +78,7 @@ export const truncateSvg = (svg: string, maxLength: number = 48) => {
 
       // Remove elements after the first 2
       if (elementCount > 2) {
-        return '';
+        return "";
       }
 
       // Apply length truncation to d attributes if present
@@ -171,4 +170,15 @@ export const formatBytes = (bytes: number, decimals = 2) => {
   let i = Math.floor(Math.log(bytes) / Math.log(k));
   if (i === 0) i = 1; // Always at least KB
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i - 1];
+};
+
+export const formatNumber = (num?: number): string => {
+  if (!num) return "0";
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1).replace(/\.0$/, "") + "K";
+  }
+  return num.toString();
 };
